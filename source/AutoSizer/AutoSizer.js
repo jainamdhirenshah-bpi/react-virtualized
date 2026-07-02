@@ -2,10 +2,19 @@
 
 import * as React from 'react';
 import createDetectElementResize from '../vendor/detectElementResize';
+import getEffectiveZoom from '../utils/getEffectiveZoom';
 
 type Size = {
   height: number,
   width: number,
+};
+
+type RoundingMode = 'ceil' | 'floor' | 'round';
+
+const ROUNDING_FNS: {[RoundingMode]: (number) => number} = {
+  ceil: Math.ceil,
+  floor: Math.floor,
+  round: Math.round,
 };
 
 type Props = {
@@ -33,6 +42,9 @@ type Props = {
   /** Callback to be invoked on-resize */
   onResize: Size => void,
 
+  /** How to round fractional pixel measurements: 'ceil' (default), 'floor', or 'round' */
+  roundingMode: RoundingMode,
+
   /** Optional inline style */
   style: ?Object,
 };
@@ -54,6 +66,7 @@ export default class AutoSizer extends React.Component<Props, State> {
     onResize: () => {},
     disableHeight: false,
     disableWidth: false,
+    roundingMode: 'ceil',
     style: {},
   };
 
@@ -160,15 +173,24 @@ export default class AutoSizer extends React.Component<Props, State> {
   }
 
   _onResize = () => {
-    const {disableHeight, disableWidth, onResize} = this.props;
+    const {disableHeight, disableWidth, onResize, roundingMode} = this.props;
 
     if (this._parentNode) {
       // Guard against AutoSizer component being removed from the DOM immediately after being added.
       // This can result in invalid style values which can result in NaN values if we don't handle them.
       // See issue #150 for more context.
 
-      const height = this._parentNode.offsetHeight || 0;
-      const width = this._parentNode.offsetWidth || 0;
+      // getBoundingClientRect returns fractional pixel measurements;
+      // roundingMode controls how they're rounded to whole pixels.
+      const round = ROUNDING_FNS[roundingMode] || Math.ceil;
+      const boundingRect = this._parentNode.getBoundingClientRect();
+      // getBoundingClientRect() return dimensions and position that are relative to the viewport,
+      // and hence include the effects of CSS zoom. We hand this width back as a layout size so
+      // to avoid the zoom from being counted twice we divide out the element's cumulative effective CSS zoom.
+      //  No-op when there is no zoom (effectiveZoom === 1).
+      const zoom = getEffectiveZoom(this._parentNode) || 1;
+      const height = round(boundingRect.height / zoom) || 0;
+      const width = round(boundingRect.width / zoom) || 0;
 
       const win = this._window || window;
       const style = win.getComputedStyle(this._parentNode) || {};
