@@ -25,6 +25,7 @@
     "deploy": "gh-pages -d build",
     "lint": "eslint 'source/**/*.js'",
     "typecheck": "flow check",
+    "prepare": "echo preparing glint-virtualized",
     "prettier": "prettier --write '{playground,source,docs}/**/*.{js,md}'",
     "prettier:diff": "prettier --list-different '{playground,source,docs}/**/*.{js,md}'",
     "postpublish": "yarn run deploy",
@@ -38,7 +39,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "pretty-quick --staged"
+      "pre-commit": "pretty-quick --staged && yarn run build && git add styles.css && cd dist && git add ."
     }
   },
   "files": [
